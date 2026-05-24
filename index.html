@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Mundo do Saber 3D | EDUC Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#080c2d;font-family:'Segoe UI',sans-serif}
+canvas{display:block}
+#hud{position:fixed;top:14px;left:16px;color:#fff;font-size:14px;line-height:2;pointer-events:none;z-index:10;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+#hud-loc{color:#a8c0ff;font-size:12px}
+#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;pointer-events:none;z-index:10}
+#cross::before,#cross::after{content:'';position:absolute;background:rgba(255,255,255,.85)}
+#cross::before{width:2px;height:100%;left:50%;transform:translateX(-50%)}
+#cross::after{width:100%;height:2px;top:50%;transform:translateY(-50%)}
+#prompt{position:fixed;bottom:68px;left:50%;transform:translateX(-50%);color:#ffe040;font-size:15px;font-weight:600;pointer-events:none;display:none;z-index:10;text-shadow:0 0 10px rgba(255,220,0,.5);white-space:nowrap}
+#hint{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:rgba(180,185,220,.65);font-size:12px;pointer-events:none;z-index:10;white-space:nowrap}
+#over{position:fixed;inset:0;background:rgba(5,10,35,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;cursor:pointer}
+#over h1{color:#fff;font-size:34px;margin-bottom:10px}
+#over .sub{color:#8ab0ff;font-size:15px;margin-bottom:6px}
+#over .keys{color:#5070a0;font-size:13px;margin-bottom:22px}
+#sbtn{padding:13px 40px;background:#1a50cc;color:#fff;border:none;border-radius:9px;font-size:17px;cursor:pointer;font-family:inherit;transition:background .15s}
+#sbtn:hover{background:#2a60dd}
+#over .cred{color:#30507a;font-size:12px;margin-top:14px}
+#quiz{position:fixed;inset:0;background:rgba(0,5,25,.93);display:none;align-items:center;justify-content:center;z-index:50}
+#quiz.on{display:flex}
+#qbox{background:#07091f;border-radius:14px;padding:26px 30px;width:min(510px,92vw);position:relative;border:2px solid transparent}
+#qtit{font-size:18px;font-weight:700;margin-bottom:8px}
+#qsep{height:2px;margin-bottom:14px;border-radius:1px}
+#qp{color:#fff;font-size:15px;line-height:1.6;margin-bottom:18px}
+#qopts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.qo{padding:11px 15px;border-radius:9px;border:none;color:#fff;font-size:13px;cursor:pointer;text-align:left;font-family:inherit;transition:filter .12s}
+.qo:hover:not(:disabled){filter:brightness(1.35)}
+.qo.ok{background:#009944!important}
+.qo.err{background:#cc2222!important}
+#qsc{font-size:12px;color:rgba(200,210,255,.7);text-align:right}
+#qcl{position:absolute;top:12px;right:14px;background:none;border:none;color:rgba(255,255,255,.4);font-size:22px;cursor:pointer;line-height:1}
+#qcl:hover{color:#fff}
+#fb{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:22px;font-weight:700;background:rgba(0,0,0,.9);padding:14px 30px;border-radius:12px;display:none;pointer-events:none;z-index:60;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<div id="over">
+  <h1>🌍 Mundo do Saber 3D</h1>
+  <p class="sub">Explore 5 ilhas temáticas e responda quiz educativos!</p>
+  <p class="keys">WASD = mover &nbsp;·&nbsp; Mouse = olhar &nbsp;·&nbsp; Espaço = pular &nbsp;·&nbsp; E = quiz &nbsp;·&nbsp; ESC = pausar</p>
+  <button id="sbtn">▶&nbsp; Iniciar Jogo</button>
+  <p class="cred">Sebastião Alves de Almeida · EDUC Games · Araruama-RJ</p>
+</div>
+
+<div id="hud">
+  <div>⭐ <span id="hs">0</span> &nbsp;|&nbsp; 🏆 <span id="hp">0</span> pts</div>
+  <div id="hud-loc">Hub Central</div>
+</div>
+<div id="cross"></div>
+<div id="prompt"></div>
+<div id="hint">WASD = mover · Mouse = olhar · Espaço = pular · E = quiz · ESC = pausar</div>
+
+<div id="quiz">
+  <div id="qbox">
+    <button id="qcl">✕</button>
+    <div id="qtit"></div><div id="qsep"></div>
+    <div id="qp"></div>
+    <div id="qopts"></div>
+    <div id="qsc"></div>
+  </div>
+</div>
+<div id="fb"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ── QUIZ DATA ────────────────────────────────────────────── */
+const QD = {
+  mat:{nome:'Matemática',emoji:'🔢',hex:'#1488cc',thx:0x1488cc,
+    qs:[['Quanto é 7 × 8?',['A) 54','B) 56','C) 64','D) 48'],1],
+       ['Raiz quadrada de 144:',['A) 10','B) 11','C) 12','D) 14'],2],
+       ['15% de 200 é igual a:',['A) 20','B) 25','C) 30','D) 40'],2],
+       ['2 elevado à 4ª potência:',['A) 8','B) 12','C) 16','D) 18'],2],
+       ['Pi arredondado é:',['A) 3,12','B) 3,14','C) 3,16','D) 3,18'],1],
+       ['(3+5) × 2 − 4 =',['A) 10','B) 12','C) 14','D) 16'],1],
+       ['Qual número é primo?',['A) 9','B) 15','C) 17','D) 21'],2],
+       ['Área de um quadrado 5×5:',['A) 10','B) 20','C) 25','D) 30'],2]]},
+  sci:{nome:'Ciências',emoji:'🔬',hex:'#12c048',thx:0x12c048,
+    qs:[['Maior planeta do Sistema Solar?',['A) Saturno','B) Júpiter','C) Urano','D) Netuno'],1],
+       ['Ossos no corpo humano adulto:',['A) 196','B) 206','C) 216','D) 226'],1],
+       ['Símbolo químico do ouro:',['A) Or','B) Go','C) Au','D) Ag'],2],
+       ['Fotossíntese depende de:',['A) Celulose','B) Clorofila','C) Glicose','D) Amido'],1],
+       ['Velocidade da luz no vácuo:',['A) 300 m/s','B) 300 km/s','C) 300.000 km/s','D) 30.000 km/s'],2],
+       ['H₂O é a fórmula de:',['A) Sal','B) Água','C) Açúcar','D) Álcool'],1],
+       ['Menor unidade da vida:',['A) Átomo','B) Molécula','C) Célula','D) Tecido'],2],
+       ['Órgão que bombeia o sangue:',['A) Pulmão','B) Fígado','C) Rim','D) Coração'],3]]},
+  por:{nome:'Português',emoji:'📚',hex:'#d020b0',thx:0xd020b0,
+    qs:[['Plural de "cidadão":',['A) cidadões','B) cidadãos','C) cidadantos','D) cidadaos'],1],
+       ['"Dom Casmurro" foi escrito por:',['A) Alencar','B) Machado de Assis','C) Clarice','D) Jorge Amado'],1],
+       ['Sujeito de "Ele chegou cedo":',['A) chegou','B) cedo','C) Ele','D) nenhum'],2],
+       ['Adjetivo é a palavra que:',['A) nomeia','B) indica ação','C) caracteriza','D) liga'],2],
+       ['Metáfora é:',['A) comp. com como','B) comp. direta','C) exagero','D) repetição'],1],
+       ['Antônimo de "coragem":',['A) bravura','B) valentia','C) covardia','D) força'],2],
+       ['Sinônimo de "efêmero":',['A) eterno','B) passageiro','C) intenso','D) distante'],1],
+       ['"Rápido" em "Ele corre rápido":',['A) subst.','B) verbo','C) adj.','D) advérbio'],3]]},
+  his:{nome:'História',emoji:'🏛',hex:'#d06010',thx:0xd06010,
+    qs:[['Brasil descoberto pelos portugueses em:',['A) 1498','B) 1500','C) 1502','D) 1510'],1],
+       ['República proclamada por:',['A) Dom Pedro I','B) Dom Pedro II','C) Deodoro','D) Getúlio'],2],
+       ['1ª Guerra Mundial:',['A) 1900-05','B) 1914-18','C) 1939-45','D) 1950-53'],1],
+       ['Revolução Francesa no século:',['A) XVI','B) XVII','C) XVIII','D) XIX'],2],
+       ['Independência do Brasil em:',['A) 1808','B) 1820','C) 1822','D) 1824'],2],
+       ['2ª Guerra Mundial terminou em:',['A) 1943','B) 1944','C) 1945','D) 1946'],2],
+       ['Lei Áurea assinada por:',['A) Dom Pedro I','B) Dom Pedro II','C) Princesa Isabel','D) Deodoro'],2],
+       ['Ditadura Militar no Brasil:',['A) 1945-60','B) 1955-75','C) 1964-85','D) 1970-90'],2]]},
+  geo:{nome:'Geografia',emoji:'🌍',hex:'#c8a010',thx:0xc8a010,
+    qs:[['Capital do Brasil:',['A) São Paulo','B) Rio de Janeiro','C) Brasília','D) Salvador'],2],
+       ['Rio Nilo fica em:',['A) Ásia','B) Europa','C) África','D) América'],2],
+       ['Brasil está em:',['A) Am. Norte','B) Am. Central','C) Am. do Sul','D) Oceania'],2],
+       ['País mais populoso do mundo:',['A) Índia','B) China','C) EUA','D) Brasil'],0],
+       ['Brasil tem quantos estados:',['A) 24','B) 25','C) 26','D) 27'],2],
+       ['Amazônia majoritariamente no:',['A) Peru','B) Colômbia','C) Venezuela','D) Brasil'],3],
+       ['Capital da Argentina:',['A) Lima','B) Santiago','C) Montevidéu','D) Buenos Aires'],3],
+       ['Maior país em área territorial:',['A) Canadá','B) Rússia','C) EUA','D) China'],1]]},
+};
+
+/* ── THREE.JS ─────────────────────────────────────────────── */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080c2d);
+scene.fog = new THREE.FogExp2(0x080c2d, 0.016);
+
+const cam = new THREE.PerspectiveCamera(72, innerWidth/innerHeight, 0.1, 600);
+cam.position.set(0, 3.5, 0);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.appendChild(renderer.domElement);
+
+window.addEventListener('resize',()=>{
+  cam.aspect = innerWidth/innerHeight;
+  cam.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+scene.add(new THREE.AmbientLight(0x7080c0, 0.7));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(60,90,40); scene.add(sun);
+
+/* ── HELPERS ─────────────────────────────────────────────── */
+const M = (geo,col) => new THREE.MeshLambertMaterial({color:col});
+function mk(geo,col,x,y,z,addToScene=true){
+  const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:col}));
+  m.position.set(x,y,z); if(addToScene) scene.add(m); return m;
+}
+function box(w,h,d,col,x,y,z){return mk(new THREE.BoxGeometry(w,h,d),col,x,y,z)}
+function sph(r,col,x,y,z){return mk(new THREE.SphereGeometry(r,14,14),col,x,y,z)}
+function cyl(rt,rb,h,col,x,y,z){return mk(new THREE.CylinderGeometry(rt,rb,h,10),col,x,y,z)}
+
+/* ── WORLD ───────────────────────────────────────────────── */
+// Stars
+const sg=new THREE.BufferGeometry(), sv=[];
+for(let i=0;i<1000;i++){
+  const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1), r=180+Math.random()*80;
+  sv.push(r*Math.sin(ph)*Math.cos(th), Math.abs(r*Math.cos(ph))+8, r*Math.sin(ph)*Math.sin(th));
+}
+sg.setAttribute('position',new THREE.Float32BufferAttribute(sv,3));
+scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:1.4})));
+
+// Moon
+sph(11,0xEDE8C0,-85,68,-105);
+
+// Hub
+const platforms=[];
+platforms.push(box(22,1,22,0x4848c0,0,0,0));
+box(21.5,.35,21.5,0x7070e0,0,.68,0);
+// trees on hub
+for(const[dx,dz]of[[7,7],[-7,7],[7,-7],[-7,-7],[0,9],[9,0],[0,-9],[-9,0]]){
+  cyl(.2,.2,2,0x5a3010,dx,1.5,dz);
+  sph(1.4,0x229922,dx,3.1,dz);
+}
+// central raised platform (mirante)
+platforms.push(cyl(2.5,2.5,.4,0x5858a8,0,5.2,0));
+
+// Islands
+const ISLS=[
+  {key:'mat',x:0, y:0, z:38},
+  {key:'sci',x:38,y:0, z:0},
+  {key:'por',x:0, y:0, z:-38},
+  {key:'his',x:-38,y:0,z:0},
+  {key:'geo',x:28,y:5, z:-28},
+];
+
+const portalDefs=[], portalRings=[];
+
+for(const{key,x,y,z} of ISLS){
+  const d=QD[key];
+  // Island body
+  platforms.push(box(15,1,15,d.thx,x,y,z));
+  // Lighter top
+  const lc=new THREE.Color(d.thx).addScalar(.15);
+  box(14.5,.35,14.5,lc,x,y+.68,z);
+  // Crystals
+  for(const[dx,dz]of[[-4,-4],[4,-4],[-4,4],[4,4],[0,5],[-5,0],[5,0],[0,-5]]){
+    const h=.6+Math.random()*1.3;
+    const cr=box(.28,h,.28,d.thx,x+dx,y+.68+h/2,z+dz);
+    cr.rotation.y=Math.random()*Math.PI;
+    cr.rotation.z=(Math.random()-.5)*.28;
+  }
+  // Portal pedestal
+  platforms.push(cyl(.65,.65,.9,0x303050,x,y+1.45,z));
+  portalDefs.push({key,x,y,z});
+  // Portal rings (12 spheres)
+  const rings=[];
+  for(let j=0;j<12;j++) rings.push(sph(.38,d.thx,x,y+3.5,z));
+  portalRings.push({key,px:x,py:y,pz:z,rings});
+  // Bridge platforms (5 steps hub→island)
+  for(let i=1;i<=5;i++){
+    const t=i/6, bx=x*t, bz=z*t, by=y*t+Math.sin(t*Math.PI)*3;
+    platforms.push(box(3,.5,3,0x484870,bx,by,bz));
+  }
+}
+
+// Pre-bake bounding boxes
+const BBs=platforms.map(p=>{
+  const b=new THREE.Box3().setFromObject(p); return b;
+});
+
+/* ── PLAYER / CONTROLS ───────────────────────────────────── */
+let locked=false, yaw=0, pitch=0, vy=0, grounded=false, quizOpen=false;
+let gameStarted=false, manualMouse=false, lastMX=0, lastMY=0;
+const G=-30, JV=11, SPD=9, PH=1.75;
+const keys={};
+
+// Botão inicia o jogo IMEDIATAMENTE, pointer lock é opcional
+document.getElementById('sbtn').addEventListener('click',()=>{
+  gameStarted=true;
+  locked=true;
+  document.getElementById('over').style.display='none';
+  document.getElementById('hint').style.display='block';
+  try{ renderer.domElement.requestPointerLock(); }catch(e){}
+});
+
+// Clicar no canvas também tenta pointer lock
+renderer.domElement.addEventListener('click',()=>{
+  if(gameStarted&&!quizOpen) try{ renderer.domElement.requestPointerLock(); }catch(e){}
+});
+
+document.addEventListener('pointerlockchange',()=>{
+  const pl=document.pointerLockElement===renderer.domElement;
+  if(gameStarted){ locked=true; manualMouse=!pl; }
+});
+document.addEventListener('pointerlockerror',()=>{ manualMouse=true; });
+
+document.addEventListener('mousemove',e=>{
+  if(!gameStarted||quizOpen)return;
+  let dx,dy;
+  if(document.pointerLockElement===renderer.domElement){
+    dx=e.movementX; dy=e.movementY;
+  } else if(manualMouse){
+    dx=e.clientX-lastMX; dy=e.clientY-lastMY;
+  } else return;
+  lastMX=e.clientX; lastMY=e.clientY;
+  yaw-=dx*.0022; pitch-=dy*.0022;
+  pitch=Math.max(-1.15,Math.min(1.15,pitch));
+});
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
+  if(e.code==='KeyE'&&gameStarted&&!quizOpen){const k=nearPortal();if(k)openQuiz(k);}
+  if(e.code==='Escape'){
+    if(quizOpen)closeQuiz();
+    else if(gameStarted){ document.exitPointerLock(); }
+  }
+});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+
+function nearPortal(){
+  for(const p of portalDefs){
+    if(Math.hypot(cam.position.x-p.x,cam.position.z-p.z)<6.5)return p.key;
+  }return null;
+}
+
+function physics(dt){
+  // Move
+  const dir=new THREE.Vector3();
+  if(keys.KeyW||keys.ArrowUp)   dir.z-=1;
+  if(keys.KeyS||keys.ArrowDown) dir.z+=1;
+  if(keys.KeyA||keys.ArrowLeft) dir.x-=1;
+  if(keys.KeyD||keys.ArrowRight)dir.x+=1;
+  if(dir.lengthSq()>0){
+    dir.normalize().multiplyScalar(SPD*dt);
+    dir.applyEuler(new THREE.Euler(0,yaw,0));
+    cam.position.x+=dir.x; cam.position.z+=dir.z;
+  }
+  // Gravity
+  vy+=G*dt; cam.position.y+=vy*dt;
+  // Ground
+  grounded=false;
+  const px=cam.position.x, pz=cam.position.z;
+  for(const bb of BBs){
+    if(px>bb.min.x+.25&&px<bb.max.x-.25&&pz>bb.min.z+.25&&pz<bb.max.z-.25){
+      const surf=bb.max.y+PH;
+      if(cam.position.y<=surf+.1&&vy<=0){cam.position.y=surf;vy=0;grounded=true;}
+    }
+  }
+  if(keys.Space&&grounded){vy=JV;grounded=false;}
+  if(cam.position.y<-20){cam.position.set(0,5,0);vy=0;}
+}
+
+/* ── QUIZ ─────────────────────────────────────────────────── */
+let score=0,stars=0; const qUsed={};
+
+function openQuiz(key){
+  quizOpen=true; document.exitPointerLock();
+  const d=QD[key];
+  if(!qUsed[key])qUsed[key]=[];
+  const pool=d.qs.map((_,i)=>i).filter(i=>!qUsed[key].includes(i));
+  const src=pool.length?pool:(qUsed[key]=[],d.qs.map((_,i)=>i));
+  const qi=src[Math.floor(Math.random()*src.length)]; qUsed[key].push(qi);
+  const[perg,opts,ri]=d.qs[qi];
+  document.getElementById('qtit').textContent=d.emoji+'  Ilha da '+d.nome;
+  document.getElementById('qtit').style.color=d.hex;
+  document.getElementById('qsep').style.background=d.hex;
+  document.getElementById('qbox').style.borderColor=d.hex+'66';
+  document.getElementById('qp').textContent=perg;
+  document.getElementById('qsc').textContent='⭐ '+stars+'   🏆 '+score+' pts';
+  const bgs=['#003a98','#005520','#7a2c00','#600044'];
+  const od=document.getElementById('qopts'); od.innerHTML='';
+  opts.forEach((opt,i)=>{
+    const b=document.createElement('button'); b.className='qo';
+    b.textContent=opt; b.style.background=bgs[i];
+    b.addEventListener('click',()=>answer(i,ri,opts));
+    od.appendChild(b);
+  });
+  document.getElementById('quiz').classList.add('on');
+}
+
+function answer(c,ri,opts){
+  const ok=c===ri;
+  document.querySelectorAll('.qo').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===ri)b.classList.add('ok');
+    else if(i===c&&!ok)b.classList.add('err');
+  });
+  if(ok){score+=100;stars++;}
+  document.getElementById('hs').textContent=stars;
+  document.getElementById('hp').textContent=score;
+  setTimeout(()=>{closeQuiz();showFb(ok?'✅  CORRETO! +100 pts':'❌  Errado! Certo: '+opts[ri],ok);},900);
+}
+
+function closeQuiz(){
+  document.getElementById('quiz').classList.remove('on');
+  quizOpen=false; try{renderer.domElement.requestPointerLock();}catch(e){}
+}
+
+function showFb(msg,ok){
+  const f=document.getElementById('fb');
+  f.textContent=msg; f.style.color=ok?'#44ff88':'#ff6666';
+  f.style.display='block'; setTimeout(()=>f.style.display='none',2200);
+}
+
+document.getElementById('qcl').addEventListener('click',closeQuiz);
+
+function curLoc(){
+  let best='Hub Central',bd=22;
+  for(const p of portalDefs){
+    const d=Math.hypot(cam.position.x-p.x,cam.position.z-p.z);
+    if(d<bd){bd=d;best=QD[p.key].emoji+' Ilha da '+QD[p.key].nome;}
+  }return best;
+}
+
+/* ── LOOP ─────────────────────────────────────────────────── */
+let last=0;
+(function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min((now-last)/1000,.05); last=now;
+  if(gameStarted&&!quizOpen)physics(dt);
+  cam.rotation.order='YXZ'; cam.rotation.y=yaw; cam.rotation.x=pitch;
+  // Animate portal rings
+  const t=now/1000;
+  for(const pm of portalRings){
+    const n=pm.rings.length;
+    pm.rings.forEach((r,j)=>{
+      const a=(j/n)*Math.PI*2+t*1.25;
+      r.position.set(pm.px+Math.cos(a)*2.9, pm.py+3.5+Math.sin(t*2+j*.5)*.42, pm.pz+Math.sin(a)*2.9);
+    });
+  }
+  // HUD
+  if(gameStarted){
+    const nr=nearPortal();
+    const pmt=document.getElementById('prompt');
+    if(nr){pmt.style.display='block';pmt.textContent='[E]  Entrar: Ilha da '+QD[nr].nome+' '+QD[nr].emoji;}
+    else pmt.style.display='none';
+    document.getElementById('hud-loc').textContent=curLoc();
+  }
+  renderer.render(scene,cam);
+})(0);
+</script>
+</body>
+</html>
