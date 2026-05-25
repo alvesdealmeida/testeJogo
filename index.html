@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+<title>Mundo do Saber 3D | EDUC Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#080c2d;font-family:'Segoe UI',sans-serif}
+canvas{display:block;position:fixed;top:0;left:0}
+#hud{position:fixed;top:14px;left:16px;color:#fff;font-size:14px;line-height:2.1;pointer-events:none;text-shadow:0 1px 4px #000}
+#hloc{color:#a8c0ff;font-size:12px}
+#prompt{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);color:#ffe040;font-size:16px;font-weight:700;pointer-events:none;display:none;text-shadow:0 0 12px #ffd000;white-space:nowrap}
+#hint{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);color:rgba(180,185,220,.55);font-size:12px;pointer-events:none;white-space:nowrap}
+#start{position:fixed;inset:0;background:rgba(5,10,35,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100}
+#start h1{color:#fff;font-size:36px;margin-bottom:8px}
+#start .sub{color:#8ab0ff;font-size:15px;margin-bottom:6px}
+#start .keys{color:#506090;font-size:13px;margin-bottom:24px;text-align:center;line-height:2}
+#start button{padding:14px 44px;background:#1a50cc;color:#fff;border:none;border-radius:10px;font-size:18px;cursor:pointer;font-family:inherit}
+#start button:hover{background:#2a60dd}
+#start .cred{color:#304060;font-size:12px;margin-top:16px;text-align:center}
+#quiz{position:fixed;inset:0;background:rgba(0,5,25,.93);display:none;align-items:center;justify-content:center;z-index:50}
+#quiz.on{display:flex}
+#qbox{background:#07091f;border-radius:14px;padding:26px 30px;width:min(520px,93vw);position:relative;border:2px solid #ffffff22}
+#qtit{font-size:19px;font-weight:700;margin-bottom:8px}
+#qsep{height:2px;margin-bottom:14px;border-radius:1px}
+#qp{color:#fff;font-size:15px;line-height:1.65;margin-bottom:20px}
+#qopts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.qo{padding:12px 15px;border-radius:9px;border:none;color:#fff;font-size:13px;cursor:pointer;text-align:left;font-family:inherit;transition:filter .12s}
+.qo:hover:not(:disabled){filter:brightness(1.35)}
+.qo.ok{background:#009944!important}
+.qo.err{background:#cc2222!important}
+#qsc{font-size:12px;color:rgba(200,210,255,.7);text-align:right}
+#qcl{position:absolute;top:12px;right:14px;background:none;border:none;color:rgba(255,255,255,.4);font-size:24px;cursor:pointer;line-height:1}
+#qcl:hover{color:#fff}
+#fb{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:22px;font-weight:700;background:rgba(0,0,0,.92);padding:14px 30px;border-radius:12px;display:none;pointer-events:none;z-index:60;white-space:nowrap}
+
+/* ── Controles Mobile ── */
+#mobile-controls{
+  position:fixed;bottom:18px;left:0;right:0;
+  display:none;
+  justify-content:space-between;
+  align-items:flex-end;
+  padding:0 18px;
+  z-index:40;
+  pointer-events:none;
+}
+#dpad{
+  display:grid;
+  grid-template-columns:80px 80px 80px;
+  grid-template-rows:80px 80px 80px;
+  gap:6px;
+  pointer-events:none;
+}
+.dp-btn{
+  width:80px;height:80px;
+  border-radius:18px;
+  background:rgba(60,75,190,.65);
+  border:3px solid rgba(140,160,255,.55);
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;color:rgba(255,255,255,.95);
+  cursor:pointer;
+  pointer-events:all;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+  backdrop-filter:blur(6px);
+  transition:background .08s, transform .08s;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
+.dp-btn:active,.dp-btn.pressed{
+  background:rgba(100,130,255,.9);
+  transform:scale(.91);
+}
+.dp-empty{background:transparent;border:none;pointer-events:none;}
+#btn-enter{
+  width:100px;height:100px;
+  border-radius:50%;
+  background:rgba(220,170,0,.75);
+  border:4px solid rgba(255,230,80,.9);
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;
+  color:#1a0e00;
+  cursor:pointer;
+  pointer-events:all;
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:manipulation;
+  backdrop-filter:blur(6px);
+  text-align:center;
+  line-height:1.3;
+  transition:background .08s, transform .08s;
+  flex-shrink:0;
+  margin-bottom:10px;
+  box-shadow:0 4px 18px rgba(0,0,0,.45);
+}
+#btn-enter:active{background:rgba(255,230,0,.98);transform:scale(.91);}
+#btn-enter.hidden{opacity:.25;pointer-events:none;}
+
+@media (max-width:900px),(pointer:coarse){
+  #mobile-controls{display:flex!important;}
+  #hint{display:none;}
+}
+
+/* Mensagem de rotacao */
+#rotate-msg{
+  display:none;position:fixed;inset:0;background:#080c2d;z-index:999;
+  flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;font-size:18px;text-align:center;gap:16px;
+}
+.rot-icon{font-size:72px;animation:rspin 2.2s ease-in-out infinite;}
+@keyframes rspin{0%,100%{transform:rotate(0deg);}45%,55%{transform:rotate(90deg);}}
+#rotate-msg strong{font-size:22px;}
+#rotate-msg p{color:#8ab0ff;font-size:14px;max-width:260px;line-height:1.6;margin:0;}
+/* Landscape pequeno: reduz botoes */
+@media (max-height:420px) and (pointer:coarse){
+  #dpad{grid-template-columns:64px 64px 64px;grid-template-rows:64px 64px 64px;gap:4px;}
+  .dp-btn{width:64px;height:64px;font-size:26px;border-radius:14px;}
+  #btn-enter{width:82px;height:82px;font-size:12px;}
+  #mobile-controls{bottom:6px;padding:0 8px;}
+}
+
+/* Botao Fullscreen */
+#btn-fs{
+  position:fixed;top:12px;right:14px;z-index:45;
+  width:46px;height:46px;border-radius:12px;
+  background:rgba(60,75,190,.65);
+  border:2px solid rgba(140,160,255,.5);
+  color:#fff;font-size:22px;
+  display:none;align-items:center;justify-content:center;
+  cursor:pointer;pointer-events:all;
+  touch-action:manipulation;
+  backdrop-filter:blur(6px);
+  box-shadow:0 3px 12px rgba(0,0,0,.4);
+  transition:background .1s,transform .1s;
+  user-select:none;-webkit-user-select:none;
+}
+#btn-fs:active{background:rgba(100,130,255,.9);transform:scale(.91);}
+@media (max-width:900px),(pointer:coarse){
+  #btn-fs{display:flex!important;}
+}
+</style>
+</head>
+<body>
+<div id="rotate-msg"><div class="rot-icon">📱</div><strong>Gire o dispositivo</strong><p>Este jogo funciona melhor na orientação horizontal 🎮</p></div>
+<button id="btn-fs" title="Tela cheia" ontouchstart="toggleFS()" onclick="toggleFS()">⛶</button>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div>⭐ <span id="hs">0</span> &nbsp;|&nbsp; 🏆 <span id="hp">0</span> pts</div>
+  <div id="hloc">Hub Central</div>
+</div>
+<div id="prompt"></div>
+<div id="hint">WASD ou ↑↓←→ = mover &nbsp;·&nbsp; E = entrar no quiz</div>
+<div id="start">
+  <h1>🌍 Mundo do Saber</h1>
+  <p class="sub">Explore 5 ilhas temáticas e responda quiz educativos!</p>
+  <p class="keys">WASD ou setas = mover &nbsp;·&nbsp; E = entrar no quiz<br>40 perguntas · 5 matérias · 100 pts por acerto</p>
+  <button id="sbtn">▶ &nbsp;Iniciar Jogo</button>
+  <p class="cred">Sebastião Alves de Almeida · EDUC Games · Araruama-RJ</p>
+</div>
+<div id="quiz">
+  <div id="qbox">
+    <button id="qcl">✕</button>
+    <div id="qtit"></div><div id="qsep"></div>
+    <div id="qp"></div><div id="qopts"></div><div id="qsc"></div>
+  </div>
+</div>
+<div id="fb"></div>
+
+<!-- Controles Mobile -->
+<div id="mobile-controls">
+  <!-- D-Pad esquerdo -->
+  <div id="dpad">
+    <div class="dp-empty"></div>
+    <button class="dp-btn" id="dp-up"   ontouchstart="dpPress('up')"   ontouchend="dpRelease('up')"   onmousedown="dpPress('up')"   onmouseup="dpRelease('up')">▲</button>
+    <div class="dp-empty"></div>
+    <button class="dp-btn" id="dp-left" ontouchstart="dpPress('left')" ontouchend="dpRelease('left')" onmousedown="dpPress('left')" onmouseup="dpRelease('left')">◀</button>
+    <div class="dp-empty"></div>
+    <button class="dp-btn" id="dp-right"ontouchstart="dpPress('right')"ontouchend="dpRelease('right')"onmousedown="dpPress('right')"onmouseup="dpRelease('right')">▶</button>
+    <div class="dp-empty"></div>
+    <button class="dp-btn" id="dp-down" ontouchstart="dpPress('down')" ontouchend="dpRelease('down')" onmousedown="dpPress('down')" onmouseup="dpRelease('down')">▼</button>
+    <div class="dp-empty"></div>
+  </div>
+
+  <!-- Botão E (Entrar na ilha) direito -->
+  <button id="btn-enter" class="hidden"
+    ontouchstart="doEnter()" onmousedown="doEnter()">
+    🏝<br>ENTRAR
+  </button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   WORLD LAYOUT — coordenadas fixas em unidades de mundo
+   ═══════════════════════════════════════════════ */
+const D      = 320;   // distância hub→ilha
+const HUB_R  = 95;   // meia-largura do hub (quadrado)
+const ISL_R  = 85;   // meia-largura de cada ilha (quadrado)
+const BRG_W  = 55;   // meia-largura do corredor de ponte
+
+const ISLANDS = {
+  mat:{nome:'Matemática',emoji:'🔢',clr:'#1488cc', x:0,        y:-D      },
+  sci:{nome:'Ciências',  emoji:'🔬',clr:'#12c048', x:D,        y:0       },
+  por:{nome:'Português', emoji:'📚',clr:'#d020b0', x:0,        y:D       },
+  his:{nome:'História',  emoji:'🏛', clr:'#d06010', x:-D,       y:0       },
+  geo:{nome:'Geografia', emoji:'🌍',clr:'#c8a010', x:D*0.72,   y:-D*0.72 },
+};
+
+/* ─── canWalk: verifica se (x,y) é área navegável ─── */
+function canWalk(x, y){
+  // 1. Hub (quadrado)
+  if(Math.abs(x) <= HUB_R && Math.abs(y) <= HUB_R) return true;
+
+  for(const isl of Object.values(ISLANDS)){
+    // 2. Ilha (quadrado)
+    if(Math.abs(x - isl.x) <= ISL_R && Math.abs(y - isl.y) <= ISL_R) return true;
+
+    // 3. Ponte: corredor rotacionado hub(0,0) → ilha
+    //    Usa projeção vetorial: decompe (x,y) em eixo longitudinal e transversal
+    const len  = Math.hypot(isl.x, isl.y);
+    const ux   = isl.x / len;   // vetor unitário ao longo da ponte
+    const uy   = isl.y / len;
+    const along = x * ux + y * uy;           // distância ao longo da ponte
+    const perp  = Math.abs(-uy*x + ux*y);    // distância perpendicular (módulo)
+    if(along >= 0 && along <= len && perp <= BRG_W) return true;
+  }
+  return false;
+}
+
+/* ═══════════════════════════════════════════════
+   QUIZ DATA
+   ═══════════════════════════════════════════════ */
+const QD = {
+  mat:{nome:'Matemática',emoji:'🔢',clr:'#1488cc',
+    qs:[['Quanto é 7 × 8?',['A) 54','B) 56','C) 64','D) 48'],1],
+       ['Raiz quadrada de 144:',['A) 10','B) 11','C) 12','D) 14'],2],
+       ['15% de 200 é:',['A) 20','B) 25','C) 30','D) 40'],2],
+       ['2 elevado à 4ª potência:',['A) 8','B) 12','C) 16','D) 18'],2],
+       ['Pi arredondado é:',['A) 3,12','B) 3,14','C) 3,16','D) 3,18'],1],
+       ['(3+5) × 2 − 4 =',['A) 10','B) 12','C) 14','D) 16'],1],
+       ['Qual número é primo?',['A) 9','B) 15','C) 17','D) 21'],2],
+       ['Área de um quadrado 5×5:',['A) 10','B) 20','C) 25','D) 30'],2]]},
+  sci:{nome:'Ciências',emoji:'🔬',clr:'#12c048',
+    qs:[['Maior planeta do Sistema Solar?',['A) Saturno','B) Júpiter','C) Urano','D) Netuno'],1],
+       ['Ossos no corpo humano adulto:',['A) 196','B) 206','C) 216','D) 226'],1],
+       ['Símbolo químico do ouro:',['A) Or','B) Go','C) Au','D) Ag'],2],
+       ['Fotossíntese depende de:',['A) Celulose','B) Clorofila','C) Glicose','D) Amido'],1],
+       ['Velocidade da luz no vácuo:',['A) 300 m/s','B) 300 km/s','C) 300.000 km/s','D) 30.000 km/s'],2],
+       ['H₂O é a fórmula de:',['A) Sal','B) Água','C) Açúcar','D) Álcool'],1],
+       ['Menor unidade da vida:',['A) Átomo','B) Molécula','C) Célula','D) Tecido'],2],
+       ['Órgão que bombeia o sangue:',['A) Pulmão','B) Fígado','C) Rim','D) Coração'],3]]},
+  por:{nome:'Português',emoji:'📚',clr:'#d020b0',
+    qs:[['Plural de "cidadão":',['A) cidadões','B) cidadãos','C) cidadantos','D) cidadaos'],1],
+       ['"Dom Casmurro" foi escrito por:',['A) Alencar','B) Machado de Assis','C) Clarice','D) Amado'],1],
+       ['Sujeito de "Ele chegou cedo":',['A) chegou','B) cedo','C) Ele','D) nenhum'],2],
+       ['Adjetivo é a palavra que:',['A) nomeia','B) indica ação','C) caracteriza','D) liga'],2],
+       ['Metáfora é:',['A) comp. com como','B) comp. direta','C) exagero','D) repetição'],1],
+       ['Antônimo de "coragem":',['A) bravura','B) valentia','C) covardia','D) força'],2],
+       ['Sinônimo de "efêmero":',['A) eterno','B) passageiro','C) intenso','D) distante'],1],
+       ['"Rápido" em "Ele corre rápido":',['A) subs.','B) verbo','C) adj.','D) advérbio'],3]]},
+  his:{nome:'História',emoji:'🏛',clr:'#d06010',
+    qs:[['Brasil descoberto em:',['A) 1498','B) 1500','C) 1502','D) 1510'],1],
+       ['República proclamada por:',['A) Dom Pedro I','B) Dom Pedro II','C) Deodoro','D) Getúlio'],2],
+       ['1ª Guerra Mundial:',['A) 1900-05','B) 1914-18','C) 1939-45','D) 1950-53'],1],
+       ['Revolução Francesa no séc.:',['A) XVI','B) XVII','C) XVIII','D) XIX'],2],
+       ['Independência do Brasil em:',['A) 1808','B) 1820','C) 1822','D) 1824'],2],
+       ['2ª Guerra terminou em:',['A) 1943','B) 1944','C) 1945','D) 1946'],2],
+       ['Lei Áurea assinada por:',['A) Dom Pedro I','B) Dom Pedro II','C) Princesa Isabel','D) Deodoro'],2],
+       ['Ditadura Militar no Brasil:',['A) 1945-60','B) 1955-75','C) 1964-85','D) 1970-90'],2]]},
+  geo:{nome:'Geografia',emoji:'🌍',clr:'#c8a010',
+    qs:[['Capital do Brasil:',['A) São Paulo','B) Rio de Janeiro','C) Brasília','D) Salvador'],2],
+       ['Rio Nilo fica em:',['A) Ásia','B) Europa','C) África','D) América'],2],
+       ['Brasil está em:',['A) Am. Norte','B) Am. Central','C) Am. do Sul','D) Oceania'],2],
+       ['País mais populoso:',['A) Índia','B) China','C) EUA','D) Brasil'],0],
+       ['Brasil tem quantos estados:',['A) 24','B) 25','C) 26','D) 27'],2],
+       ['Amazônia principalmente no:',['A) Peru','B) Colômbia','C) Venezuela','D) Brasil'],3],
+       ['Capital da Argentina:',['A) Lima','B) Santiago','C) Montevidéu','D) Buenos Aires'],3],
+       ['Maior país em área:',['A) Canadá','B) Rússia','C) EUA','D) China'],1]]},
+};
+
+/* ═══════════════════════════════════════════════
+   CANVAS + ZOOM
+   ═══════════════════════════════════════════════ */
+const C=document.getElementById('c'), ctx=C.getContext('2d');
+let W,H,Z; // Z = zoom
+function resize(){
+  W=C.width=window.innerWidth; H=C.height=window.innerHeight;
+  Z=Math.min(W,H)/900;
+}
+resize(); window.addEventListener('resize',resize);
+
+function ws(wx,wy){ return [W/2+(wx-camX)*Z, H/2+(wy-camY)*Z]; }
+
+/* ═══════════════════════════════════════════════
+   ESTRELAS
+   ═══════════════════════════════════════════════ */
+const STARS=Array.from({length:200},()=>({
+  x:(Math.random()-.5)*4000, y:(Math.random()-.5)*4000,
+  r:Math.random()*1.5+.3, a:Math.random()*.8+.2
+}));
+
+/* ═══════════════════════════════════════════════
+   ESTADO DO JOGO
+   ═══════════════════════════════════════════════ */
+let started=false, quizOpen=false, score=0, starsCount=0;
+const qUsed={};
+let camX=0, camY=0;
+const pl={x:0,y:0,ang:0};
+const SPD=200;
+const keys={};
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if(e.code==='KeyE'&&started&&!quizOpen){const k=nearPortal();if(k)openQuiz(k);}
+  if(e.code==='Escape'&&quizOpen)closeQuiz();
+});
+document.addEventListener('keyup',e=>keys[e.code]=false);
+document.getElementById('sbtn').addEventListener('click',()=>{
+  started=true; document.getElementById('start').style.display='none';
+});
+
+/* ═══════════════════════════════════════════════
+   HELPERS DE DESENHO
+   ═══════════════════════════════════════════════ */
+function lighten(hex,a){
+  const n=parseInt(hex.replace('#',''),16);
+  return `rgb(${Math.min(255,((n>>16)&255)+a)},${Math.min(255,((n>>8)&255)+a)},${Math.min(255,(n&255)+a)})`;
+}
+
+function drawRect(wx,wy,w,h,fill){
+  const [sx,sy]=ws(wx,wy); const r=7*Z;
+  const sw=w*Z, sh=h*Z;
+  ctx.beginPath();
+  ctx.moveTo(sx-sw/2+r,sy-sh/2); ctx.lineTo(sx+sw/2-r,sy-sh/2);
+  ctx.arcTo(sx+sw/2,sy-sh/2,sx+sw/2,sy-sh/2+r,r);
+  ctx.lineTo(sx+sw/2,sy+sh/2-r);
+  ctx.arcTo(sx+sw/2,sy+sh/2,sx+sw/2-r,sy+sh/2,r);
+  ctx.lineTo(sx-sw/2+r,sy+sh/2);
+  ctx.arcTo(sx-sw/2,sy+sh/2,sx-sw/2,sy+sh/2-r,r);
+  ctx.lineTo(sx-sw/2,sy-sh/2+r);
+  ctx.arcTo(sx-sw/2,sy-sh/2,sx-sw/2+r,sy-sh/2,r);
+  ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+}
+
+function drawCirc(wx,wy,r,fill){
+  const [sx,sy]=ws(wx,wy);
+  ctx.beginPath(); ctx.arc(sx,sy,r*Z,0,Math.PI*2);
+  ctx.fillStyle=fill; ctx.fill();
+}
+
+/* Desenha ponte como corredor rotacionado */
+function drawBridge(ix,iy,clr){
+  const len=Math.hypot(ix,iy);
+  const ang=Math.atan2(iy,ix);
+  const [sx,sy]=ws(0,0);
+  ctx.save();
+  ctx.translate(sx,sy); ctx.rotate(ang);
+  ctx.fillStyle=clr+'33';
+  ctx.fillRect(0,-(BRG_W)*Z, len*Z, BRG_W*2*Z);
+  // Stepping stones
+  for(let i=1;i<=9;i++){
+    const t=i/10;
+    ctx.fillStyle='#3a3870';
+    ctx.beginPath();
+    ctx.arc(len*t*Z,0,10*Z,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ═══════════════════════════════════════════════
+   PROXIMIDADE
+   ═══════════════════════════════════════════════ */
+function nearPortal(){
+  for(const[k,isl]of Object.entries(ISLANDS))
+    if(Math.hypot(pl.x-isl.x,pl.y-isl.y)<ISL_R+20) return k;
+  return null;
+}
+function nearestLoc(){
+  let best='Hub Central',bd=HUB_R+30;
+  for(const[k,isl]of Object.entries(ISLANDS)){
+    const d=Math.hypot(pl.x-isl.x,pl.y-isl.y);
+    if(d<bd){bd=d;best=isl.emoji+' Ilha da '+isl.nome;}
+  }
+  return best;
+}
+
+/* ═══════════════════════════════════════════════
+   QUIZ
+   ═══════════════════════════════════════════════ */
+function openQuiz(key){
+  quizOpen=true;
+  const d=QD[key];
+  if(!qUsed[key])qUsed[key]=[];
+  const pool=d.qs.map((_,i)=>i).filter(i=>!qUsed[key].includes(i));
+  const src=pool.length?pool:(qUsed[key]=[],d.qs.map((_,i)=>i));
+  const qi=src[Math.floor(Math.random()*src.length)];
+  qUsed[key].push(qi);
+  const[perg,opts,ri]=d.qs[qi];
+  document.getElementById('qtit').textContent=d.emoji+'  Ilha da '+d.nome;
+  document.getElementById('qtit').style.color=d.clr;
+  document.getElementById('qsep').style.background=d.clr;
+  document.getElementById('qbox').style.borderColor=d.clr+'55';
+  document.getElementById('qp').textContent=perg;
+  document.getElementById('qsc').textContent='⭐ '+starsCount+'   🏆 '+score+' pts';
+  const bgs=['#003a98','#005520','#7a2c00','#600044'];
+  const od=document.getElementById('qopts'); od.innerHTML='';
+  opts.forEach((opt,i)=>{
+    const b=document.createElement('button'); b.className='qo';
+    b.textContent=opt; b.style.background=bgs[i];
+    b.addEventListener('click',()=>answer(i,ri,opts));
+    od.appendChild(b);
+  });
+  document.getElementById('quiz').classList.add('on');
+}
+function answer(c,ri,opts){
+  const ok=c===ri;
+  document.querySelectorAll('.qo').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===ri)b.classList.add('ok');
+    else if(i===c&&!ok)b.classList.add('err');
+  });
+  if(ok){score+=100;starsCount++;}
+  document.getElementById('hs').textContent=starsCount;
+  document.getElementById('hp').textContent=score;
+  setTimeout(()=>{closeQuiz();showFb(ok?'✅  CORRETO! +100 pts':'❌  Errado! Certo: '+opts[ri],ok);},900);
+}
+function closeQuiz(){document.getElementById('quiz').classList.remove('on');quizOpen=false;}
+function showFb(msg,ok){
+  const f=document.getElementById('fb');
+  f.textContent=msg; f.style.color=ok?'#44ff88':'#ff6666';
+  f.style.display='block'; setTimeout(()=>f.style.display='none',2300);
+}
+document.getElementById('qcl').addEventListener('click',closeQuiz);
+
+/* ═══════════════════════════════════════════════
+   LOOP PRINCIPAL
+   ═══════════════════════════════════════════════ */
+let last=0, T=0;
+function frame(now){
+  requestAnimationFrame(frame2);
+  const dt=Math.min((now-last)/1000,.05); last=now; T=now/1000;
+
+  /* ── Movimento com colisão exata ── */
+  if(started&&!quizOpen){
+    let dx=0,dy=0;
+    if(keys.KeyW||keys.ArrowUp)    dy=-1;
+    if(keys.KeyS||keys.ArrowDown)  dy= 1;
+    if(keys.KeyA||keys.ArrowLeft)  dx=-1;
+    if(keys.KeyD||keys.ArrowRight) dx= 1;
+    if(dx||dy){
+      const len=Math.hypot(dx,dy);
+      const step=SPD*dt;
+      const nx=pl.x+dx/len*step;
+      const ny=pl.y+dy/len*step;
+      // Slide nas paredes: testa cada eixo separado
+      if(canWalk(nx, pl.y)) pl.x=nx;
+      if(canWalk(pl.x, ny)) pl.y=ny;
+      if(dx||dy) pl.ang=Math.atan2(dy,dx);
+    }
+    camX+=(pl.x-camX)*7*dt;
+    camY+=(pl.y-camY)*7*dt;
+  }
+
+  /* ── Fundo ── */
+  ctx.fillStyle='#080c2d'; ctx.fillRect(0,0,W,H);
+
+  /* ── Estrelas (paralaxe leve) ── */
+  for(const s of STARS){
+    const sx=W/2+(s.x-camX*.06)*Z;
+    const sy=H/2+(s.y-camY*.06)*Z;
+    if(sx<-2||sx>W+2||sy<-2||sy>H+2) continue;
+    const p=.6+.4*Math.sin(T+s.x*.003);
+    ctx.globalAlpha=s.a*p;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(sx,sy,s.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  /* ── Lua ── */
+  {const[mx,my]=ws(-400,-310);
+  ctx.fillStyle='#EDE8C0'; ctx.beginPath(); ctx.arc(mx,my,28*Z,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#D8D3A8'; ctx.beginPath(); ctx.arc(mx+9*Z,my-7*Z,11*Z,0,Math.PI*2); ctx.fill();}
+
+  /* ── Pontes ── */
+  for(const[k,isl]of Object.entries(ISLANDS)) drawBridge(isl.x,isl.y,isl.clr);
+
+  /* ── Hub ── */
+  drawRect(0,0,HUB_R*2,HUB_R*2,'#4040b8');
+  drawRect(0,-HUB_R*.06,HUB_R*1.86,HUB_R*.38,'#6060d8');
+  for(let j=0;j<8;j++){
+    const a=(j/8)*Math.PI*2;
+    drawCirc(Math.cos(a)*HUB_R*.65,Math.sin(a)*HUB_R*.65,9,'#229922');
+  }
+  {const[sx,sy]=ws(0,0);
+  ctx.fillStyle='rgba(190,200,255,.9)';
+  ctx.font=`bold ${Math.round(14*Z)}px Segoe UI`;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('HUB',sx,sy);}
+
+  /* ── Ilhas ── */
+  for(const[k,isl]of Object.entries(ISLANDS)){
+    const near=Math.hypot(pl.x-isl.x,pl.y-isl.y)<ISL_R+30;
+    const sz=ISL_R*2;
+    if(near){ctx.shadowColor=isl.clr; ctx.shadowBlur=24*Z;}
+    drawRect(isl.x,isl.y,sz,sz,isl.clr);
+    ctx.shadowBlur=0;
+    drawRect(isl.x,isl.y-ISL_R*.08,sz*.93,sz*.32,lighten(isl.clr,55));
+    // Cristais decorativos
+    for(let j=0;j<6;j++){
+      const a=(j/6)*Math.PI*2;
+      drawRect(isl.x+Math.cos(a)*ISL_R*.6, isl.y+Math.sin(a)*ISL_R*.6, 7, 18+j*2, lighten(isl.clr,30));
+    }
+    // Portal: anéis orbitando
+    const orb=ISL_R*.52;
+    for(let j=0;j<10;j++){
+      const a=(j/10)*Math.PI*2+T*1.4;
+      const pulse=.4+.6*Math.sin(T*2.5+j*.65);
+      const alpha=Math.round(90+155*pulse).toString(16).padStart(2,'0');
+      drawCirc(isl.x+Math.cos(a)*orb, isl.y+Math.sin(a)*orb*.5, 3+pulse*3, isl.clr+alpha);
+    }
+    // Label
+    const[sx,sy]=ws(isl.x,isl.y);
+    ctx.shadowBlur=0;
+    ctx.font=`${Math.round(20*Z)}px serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(isl.emoji,sx,sy-7*Z);
+    ctx.font=`bold ${Math.round(12*Z)}px Segoe UI`;
+    ctx.fillStyle='#fff';
+    ctx.fillText(isl.nome,sx,sy+13*Z);
+  }
+
+  /* ── Player ── */
+  if(started){
+    const[px,py]=ws(pl.x,pl.y);
+    ctx.save(); ctx.translate(px,py);
+    ctx.shadowColor='#fff'; ctx.shadowBlur=16;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(0,0,11*Z,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    const ar=20*Z;
+    ctx.fillStyle='#99aaff';
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(pl.ang)*ar,Math.sin(pl.ang)*ar);
+    ctx.lineTo(Math.cos(pl.ang+2.5)*ar*.45,Math.sin(pl.ang+2.5)*ar*.45);
+    ctx.lineTo(Math.cos(pl.ang-2.5)*ar*.45,Math.sin(pl.ang-2.5)*ar*.45);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  /* ── HUD ── */
+  if(started&&!quizOpen){
+    const nr=nearPortal();
+    const pmt=document.getElementById('prompt');
+    if(nr){pmt.style.display='block';pmt.textContent='[E]  Entrar: Ilha da '+ISLANDS[nr].nome+' '+ISLANDS[nr].emoji;}
+    else pmt.style.display='none';
+    document.getElementById('hloc').textContent=nearestLoc();
+  }
+}
+/* ═══════════════════════════════════════════════
+   CONTROLES MOBILE — D-Pad + Botão Entrar
+   ═══════════════════════════════════════════════ */
+const dpState={up:false,down:false,left:false,right:false};
+
+function dpPress(dir){
+  dpState[dir]=true;
+  const el=document.getElementById('dp-'+dir);
+  if(el) el.classList.add('pressed');
+}
+function dpRelease(dir){
+  dpState[dir]=false;
+  const el=document.getElementById('dp-'+dir);
+  if(el) el.classList.remove('pressed');
+}
+// Garante release ao tirar o dedo fora do botão
+document.addEventListener('touchend',()=>{
+  ['up','down','left','right'].forEach(d=>dpRelease(d));
+},{passive:true});
+document.addEventListener('touchcancel',()=>{
+  ['up','down','left','right'].forEach(d=>dpRelease(d));
+},{passive:true});
+
+function doEnter(){
+  if(!started||quizOpen) return;
+  const k=nearPortal();
+  if(k) openQuiz(k);
+}
+
+// Injeta dpState nas teclas virtuais dentro do loop
+const _origFrame=frame;
+// Integrar dpState no movimento — patch no início do frame
+const _baseFrame=requestAnimationFrame;
+function applyDpad(){
+  if(dpState.up)    keys['ArrowUp']=true;    else delete keys['ArrowUp'];
+  if(dpState.down)  keys['ArrowDown']=true;  else delete keys['ArrowDown'];
+  if(dpState.left)  keys['ArrowLeft']=true;  else delete keys['ArrowLeft'];
+  if(dpState.right) keys['ArrowRight']=true; else delete keys['ArrowRight'];
+}
+
+// Substituir frame para incluir applyDpad e atualizar botão entrar
+const _pureFrame=frame;
+function frame2(now){
+  applyDpad();
+  // Atualizar botão entrar
+  const btnE=document.getElementById('btn-enter');
+  if(btnE){
+    const nr=started&&!quizOpen?nearPortal():null;
+    if(nr) btnE.classList.remove('hidden');
+    else   btnE.classList.add('hidden');
+  }
+  _pureFrame(now);
+}
+cancelAnimationFrame(0);
+requestAnimationFrame(frame2);
+
+
+/* Deteccao de orientacao */
+function isMobileDevice(){
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1);
+}
+function checkOrientation(){
+  if(!isMobileDevice()) return;
+  const port = window.innerHeight > window.innerWidth;
+  document.getElementById('rotate-msg').style.display = port ? 'flex' : 'none';
+  const mc = document.getElementById('mobile-controls');
+  const hd = document.getElementById('hud');
+  if(mc) mc.style.display = port ? 'none' : 'flex';
+  if(hd) hd.style.display = port ? 'none' : 'block';
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', checkOrientation);
+checkOrientation();
+
+/* Fullscreen */
+function toggleFS(){
+  const el=document.documentElement;
+  const isFS=!!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement);
+  if(!isFS){
+    const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen;
+    if(fn) fn.call(el);
+  } else {
+    const fn=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen;
+    if(fn) fn.call(document);
+  }
+  updateFSIcon();
+}
+function updateFSIcon(){
+  const btn=document.getElementById('btn-fs');
+  if(!btn) return;
+  const isFS=!!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement);
+  btn.textContent=isFS?'✕':'⛶';
+  btn.title=isFS?'Sair da tela cheia':'Tela cheia';
+}
+document.addEventListener('fullscreenchange',updateFSIcon);
+document.addEventListener('webkitfullscreenchange',updateFSIcon);
+document.addEventListener('mozfullscreenchange',updateFSIcon);
+</script>
+</body>
+</html>
